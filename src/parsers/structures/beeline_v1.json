@@ -1,0 +1,277 @@
+{
+  "name": "beeline",
+  "version": "v1",
+  "loginSelectors": {
+    "usernameField": [
+      "input[name='username']",
+      "input[id='username']",
+      "input[type='text'][name*='user']",
+      "input[placeholder*='User']",
+      "input[autocomplete='username']"
+    ],
+    "passwordField": [
+      "input[name='password']",
+      "input[id='password']",
+      "input[type='password']",
+      "input[autocomplete='current-password']"
+    ],
+    "submitButton": [
+      "button[type='submit']",
+      "input[type='submit']",
+      "button:has-text('Log In')",
+      "button:has-text('Login')",
+      "button:has-text('Sign In')",
+      "[data-testid='login-button']"
+    ],
+    "successIndicator": [
+      "[data-testid='dashboard']",
+      ".dashboard",
+      "#main-nav",
+      "nav.main-navigation",
+      "[aria-label='Main Navigation']",
+      ".welcome-message",
+      "text=Welcome",
+      "text=Dashboard"
+    ]
+  },
+  "navigation": {
+    "timesheetMenuPath": [
+      "a:has-text('Timesheets')",
+      "a[href*='timesheet']",
+      "[data-nav='timesheets']",
+      "li:has-text('Timesheets') > a",
+      "nav a:has-text('Time')"
+    ],
+    "timesheetListUrl": "/timesheets"
+  },
+  "listPage": {
+    "tableContainer": [
+      ".timesheet-list",
+      "table.timesheets",
+      "[data-testid='timesheet-table']",
+      "#timesheet-grid",
+      ".data-grid",
+      "table:has(th:has-text('Period'))"
+    ],
+    "rowSelector": "tbody tr",
+    "columns": {
+      "timesheetId": {
+        "selectors": ["td:nth-child(1)", "td.id", "[data-col='id']"],
+        "required": false,
+        "transform": "text",
+        "cellIndex": 0
+      },
+      "period": {
+        "selectors": ["td.period", "td:nth-child(2)", "[data-col='period']"],
+        "required": true,
+        "transform": "text",
+        "cellIndex": 1
+      },
+      "status": {
+        "selectors": ["td.status", "td:nth-child(3)", "[data-col='status']", ".status-badge"],
+        "required": true,
+        "transform": "text",
+        "cellIndex": 2
+      },
+      "employeeName": {
+        "selectors": ["td.worker", "td:nth-child(4)", "[data-col='worker']", "td.employee"],
+        "required": true,
+        "transform": "text",
+        "cellIndex": 3
+      },
+      "link": {
+        "selectors": ["td a[href*='timesheet']", "a.timesheet-link", "td:first-child a", "a[href*='/ts/']"],
+        "required": true,
+        "transform": "text",
+        "cellIndex": 0
+      }
+    },
+    "dateFilterFrom": [
+      "input[name='dateFrom']",
+      "input[id='startDate']",
+      "input[placeholder*='From']",
+      "[data-filter='dateFrom']"
+    ],
+    "dateFilterTo": [
+      "input[name='dateTo']",
+      "input[id='endDate']",
+      "input[placeholder*='To']",
+      "[data-filter='dateTo']"
+    ],
+    "applyFilterButton": [
+      "button:has-text('Apply')",
+      "button:has-text('Search')",
+      "button:has-text('Filter')",
+      "button[type='submit']"
+    ],
+    "nextPageButton": [
+      "button:has-text('Next')",
+      "a:has-text('Next')",
+      "[aria-label='Next page']",
+      ".pagination-next"
+    ]
+  },
+  "detailPage": {
+    "employeeName": {
+      "selectors": [
+        ".employee-name",
+        "[data-field='employeeName']",
+        "span.worker-name",
+        "#worker-name",
+        "td:has-text('Worker') + td",
+        "th:has-text('Worker Name') ~ td",
+        ".header-employee",
+        "[data-label='Worker']"
+      ],
+      "required": true,
+      "transform": "trim"
+    },
+    "timesheetId": {
+      "selectors": [
+        ".timesheet-id",
+        "[data-field='timesheetId']",
+        "#ts-id",
+        "td:has-text('Timesheet #') + td",
+        "span.ts-number"
+      ],
+      "required": false,
+      "transform": "trim"
+    },
+    "period": {
+      "selectors": [
+        ".period-label",
+        "[data-field='period']",
+        ".timesheet-period",
+        "td:has-text('Period') + td",
+        "span.period",
+        "#period-range"
+      ],
+      "required": true,
+      "transform": "trim"
+    },
+    "status": {
+      "selectors": [
+        ".status-label",
+        "[data-field='status']",
+        ".timesheet-status",
+        ".status-badge",
+        "span.status",
+        "[class*='status']"
+      ],
+      "required": true,
+      "transform": "trim"
+    },
+    "client": {
+      "selectors": [
+        "[data-field='client']",
+        "td:has-text('Client') + td",
+        ".client-name",
+        "#client"
+      ],
+      "required": false,
+      "transform": "trim"
+    },
+    "project": {
+      "selectors": [
+        "[data-field='project']",
+        "td:has-text('Project') + td",
+        ".project-name",
+        "#project"
+      ],
+      "required": false,
+      "transform": "trim"
+    },
+    "entriesTable": {
+      "containerSelector": [
+        "table.timesheet-entries tbody",
+        ".entries-table tbody",
+        "[data-testid='entries-table'] tbody",
+        "table:has(th:has-text('Date')) tbody",
+        "table:has(th:has-text('Hours')) tbody"
+      ],
+      "rowSelector": "tr:not(.total-row):not(.header-row)",
+      "skipIfEmpty": true,
+      "fields": {
+        "date": {
+          "selectors": ["td.date", "td:nth-child(1)", "[data-col='date']"],
+          "required": true,
+          "transform": "date",
+          "cellIndex": 0
+        },
+        "hours": {
+          "selectors": ["td.hours", "td:nth-child(3)", "[data-col='hours']", "td.quantity"],
+          "required": true,
+          "transform": "number",
+          "cellIndex": 2
+        },
+        "type": {
+          "selectors": ["td.type", "td:nth-child(2)", "[data-col='type']", "td.earnings-code", "td.pay-type"],
+          "required": true,
+          "transform": "trim",
+          "cellIndex": 1
+        },
+        "notes": {
+          "selectors": ["td.notes", "td:nth-child(4)", "[data-col='notes']"],
+          "required": false,
+          "transform": "trim",
+          "cellIndex": 3
+        }
+      }
+    },
+    "totals": {
+      "regular": {
+        "selectors": [
+          ".total-regular",
+          "[data-total='REG']",
+          "tr.total td:has-text('Regular') + td",
+          "tfoot td.regular",
+          ".summary-reg"
+        ],
+        "required": false,
+        "transform": "number"
+      },
+      "ot": {
+        "selectors": [
+          ".total-ot",
+          "[data-total='OT']",
+          "tr.total td:has-text('OT') + td",
+          "tfoot td.ot",
+          ".summary-ot"
+        ],
+        "required": false,
+        "transform": "number"
+      },
+      "dt": {
+        "selectors": [
+          ".total-dt",
+          "[data-total='DT']",
+          "tr.total td:has-text('DT') + td",
+          "tfoot td.dt"
+        ],
+        "required": false,
+        "transform": "number"
+      },
+      "total": {
+        "selectors": [
+          ".total-hours",
+          "[data-total='TOTAL']",
+          "tr.total td:last-child",
+          "tfoot .grand-total",
+          ".summary-total",
+          "td.total-value",
+          "text=Total Hours"
+        ],
+        "required": false,
+        "transform": "number"
+      }
+    }
+  },
+  "earningsCodeMap": {
+    "REG": ["st", "reg", "regular", "standard", "straight time", "normal hours"],
+    "OT": ["ot", "overtime", "over time", "time and half", "time & half"],
+    "DT": ["dt", "double", "double time"],
+    "HOL": ["holiday", "hol", "bank holiday"],
+    "SICK": ["sick", "sick time", "sick leave"],
+    "VAC": ["vacation", "vac", "pto", "annual leave"]
+  }
+}

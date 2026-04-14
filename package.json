@@ -1,0 +1,24 @@
+{
+  "name": "vms-timesheet-scraper",
+  "version": "1.0.0",
+  "description": "Production-grade Beeline VMS timesheet scraper with LLM+OCR fallback",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "setup:browsers": "npx playwright install chromium"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "dotenv": "^16.4.7",
+    "playwright": "^1.52.0",
+    "tesseract.js": "^4.1.4",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}
