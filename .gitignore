@@ -1,0 +1,35 @@
+# Environment
+.env
+.env.example
+
+# Config / secrets
+accounts.json
+accounts.example.json
+
+# Dependencies
+node_modules
+
+# Build output
+dist
+release
+output
+temp
+
+# Logs & DB
+*.log
+*.db
+
+# Binaries / packages
+*.exe
+*.pkg
+
+# Test outputs
+playwright-report
+playwright-video
+test-results*
+test-results-ui*
+test-results-ui-pw*
+test-results-ui-pw-debug.log
+
+#
+.DS_Store

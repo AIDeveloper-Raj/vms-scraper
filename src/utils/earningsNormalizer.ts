@@ -6,12 +6,11 @@ import type { EarningsCode, VMSStructure } from '../types';
 
 // Default fallback map (merged with structure-specific maps at runtime)
 const DEFAULT_MAP: Record<EarningsCode, string[]> = {
-  REG:     ['reg', 'regular', 'st', 'standard', 'straight time', 'normal', 'base', 'rt'],
-  OT:      ['ot', 'overtime', 'over time', 'time and a half', '1.5x', 'ot1'],
-  DT:      ['dt', 'double time', 'doubletime', '2x', 'dt1'],
-  HOL:     ['hol', 'holiday', 'public holiday', 'bank holiday'],
-  SICK:    ['sick', 'sick time', 'sick leave', 'illness'],
-  VAC:     ['vac', 'vacation', 'pto', 'paid time off', 'annual leave'],
+  REG: ['reg', 'regular', 'st', 'standard', 'straight time', 'normal', 'base', 'rt'],
+  OT: ['ot /hr', 'ot/hr', 'ot (factor', 'ot-', 'overtime', 'over time', 'time and half', 'time & half'], DT: ['dt', 'double time', 'doubletime', '2x', 'dt1'],
+  HOL: ['hol', 'holiday', 'public holiday', 'bank holiday'],
+  SICK: ['sick', 'sick time', 'sick leave', 'illness'],
+  VAC: ['vac', 'vacation', 'pto', 'paid time off', 'annual leave'],
   UNKNOWN: [],
 };
 

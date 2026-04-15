@@ -1,0 +1,182 @@
+{
+  "name": "fieldglass",
+  "version": "v1",
+  "_notes": {
+    "list_strategy": "jqxGrid stores all row data in a JS variable — use page.evaluate() not DOM scraping",
+    "detail_strategy": "Metadata from DOM labels [data-help-id] OR initBadge() JS JSON. Time entries from horizontal weekly table.",
+    "hours_format": "ABO account = '8h 0m' | AMD account = '8.00' — fgHoursParser handles both",
+    "date_format": "ABO = '3/30' (M/DD) | AMD = '4-06' (M-DD) — year derived from period",
+    "subdomain": "List page always www.us.fieldglass.cloud.sap. Detail pages use buyer subdomain (abo/amd/isi etc)"
+  },
+  "loginSelectors": {
+    "usernameField": [
+      "input#usernameId_new",
+      "input[name='username']"
+    ],
+    "passwordField": [
+      "input#passwordId_new",
+      "input[name='password']"
+    ],
+    "submitButton": [
+      "button.formLoginButton_new",
+      "button[type='submit'][name='action']",
+      "button:has-text('Sign In')"
+    ],
+    "successIndicator": [
+      "#topNavBarNew",
+      ".topnav",
+      "#navBar",
+      "[id*='topNav']",
+      "a[href*='time_sheet_list']",
+      ".welcome",
+      "#primaryNav"
+    ]
+  },
+  "navigation": {
+    "timesheetListUrl": "/time_sheet_list.do?cf=1",
+    "timesheetMenuPath": [
+      "a[href*='time_sheet_list']",
+      "a:has-text('Time Sheets')",
+      "li:has-text('Time Sheet') a"
+    ]
+  },
+  "listPage": {
+    "_strategy": "page.evaluate — extract from window.jsonObject_timeSheet_supplier_list_* JS variable",
+    "gridClientId": "timeSheet_supplier_list",
+    "gridVarPrefix": "jsonObject_timeSheet_supplier_list_",
+    "dateFilter": {
+      "startField": "input#filterStartDate",
+      "endField": "input#filterEndDate",
+      "format": "MM/DD/YYYY",
+      "applyButton": "input.ttFilterButton",
+      "waitSelector": "div.jqxGridParent"
+    },
+    "_rowColumns": {
+      "status": "Invoiced | Approved | Pending Approval | etc.",
+      "time_sheet_ref": "TS reference ID e.g. ABOTS02750985",
+      "worker_name": "Last, First format",
+      "end_date": "End date of the period",
+      "st_hours": "Regular hours as decimal string",
+      "ot_hours": "OT hours as decimal string",
+      "dt_hours": "DT hours as decimal string",
+      "other_billable_hours": "Other billable hours",
+      "non_billable_hours": "Non-billable hours",
+      "worker_type": "Temp | etc.",
+      "labor_type": "Healthcare | Industrial | Business Professional | etc.",
+      "buyer_name": "Client company name",
+      "html_field": "Contains full detail page URL in href"
+    }
+  },
+  "detailPage": {
+    "_metadataStrategy": "DOM [data-help-id] labels are reliable across all accounts",
+    "timesheetId": {
+      "selectors": [
+        "[data-help-id='LABEL_TIMESHEET_REF_70'] .values",
+        "[data-help-id*='LABEL_TIMESHEET_REF'] .values",
+        "#detailTabButtonHolder .values a",
+        "#detailTabButtonHolder .values"
+      ],
+      "required": true,
+      "transform": "trim"
+    },
+    "status": {
+      "selectors": [
+        "[data-help-id='LABEL_STATUS_70'] .values",
+        "[data-help-id*='LABEL_STATUS'] .values",
+        ".fd-object-status__text",
+        ".statusBadge"
+      ],
+      "required": true,
+      "transform": "trim"
+    },
+    "period": {
+      "selectors": [
+        "[data-help-id='LABEL_PERIOD_70'] .values",
+        "[data-help-id*='LABEL_PERIOD'] .values"
+      ],
+      "required": true,
+      "transform": "trim"
+    },
+    "employeeName": {
+      "_note": "Worker name is in initBadge() JS JSON as 'title' field — extracted via page.evaluate()",
+      "jsExtract": true,
+      "selectors": [
+        "[data-help-id*='LABEL_WORKER'] .values a",
+        "[data-help-id*='LABEL_WORKER'] .values"
+      ],
+      "required": true,
+      "transform": "trim"
+    },
+    "buyer": {
+      "selectors": [
+        "[data-help-id='LABEL_BUYER_70'] .values",
+        "[data-help-id*='LABEL_BUYER'] .values"
+      ],
+      "required": false,
+      "transform": "trim"
+    },
+    "timeTable": {
+      "_strategy": "Horizontal weekly table. Columns = days, rows = rate codes. Use page.evaluate() for reliable extraction.",
+      "panelSelector": "div.fd-panel--fixed",
+      "rateGroupPanelTitle": "Time Sheet Rate Group",
+      "timeWorkedPanelTitle": "Time Worked",
+      "tableSelector": "table.timeSheetBox",
+      "dateHeaderSelector": "tr.subheaders th.dateAndDay",
+      "rateRowSelector": "tr.allRates:not(.subheaders)",
+      "rateCodeCellSelector": "th[scope='row']",
+      "totalRowSelector": "tr.timeSheetTotal",
+      "totalCellSelector": "td:last-child, td.right.timeSheetTotal",
+      "nonWorkingClass": "nonWorkingDayBGColor",
+      "_hoursFormats": {
+        "ABO_Abbott": "8h 0m  → parse as Nh Nm",
+        "AMD": "8.00   → parse as decimal",
+        "parser": "fgHoursParser.ts handles both"
+      }
+    }
+  },
+  "earningsCodeMap": {
+    "REG": [
+      "ST /Hr",
+      "ST/Hr",
+      "ST",
+      "Time Worked",
+      "Hours Worked",
+      "Standard",
+      "Regular",
+      "Straight Time"
+    ],
+    "OT": [
+      "OT /Hr",
+      "OT/Hr",
+      "OT",
+      "Overtime",
+      "Over Time",
+      "Time and a Half"
+    ],
+    "DT": [
+      "DT /Hr",
+      "DT/Hr",
+      "DT",
+      "Double Time",
+      "Double"
+    ],
+    "HOL": [
+      "Holiday",
+      "HOL",
+      "Bank Holiday"
+    ],
+    "SICK": [
+      "Sick",
+      "Sick Time",
+      "Sick Leave"
+    ],
+    "VAC": [
+      "Vacation",
+      "PTO",
+      "VAC",
+      "Annual Leave",
+      "Paid Time Off"
+    ],
+    "UNKNOWN": []
+  }
+}

@@ -1,9 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// fallback/llmParser.ts — Ask Claude to extract timesheet data from
-//   a screenshot (vision) + HTML snippet when selectors + OCR fall short.
+// fallback/llmParser.ts — LLM fallback using OpenAI gpt-5.4-mini (vision)
+//
+// Sends the full-page screenshot + trimmed HTML to OpenAI.
+// Returns strict JSON matching TimesheetData shape.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import * as fs from 'fs/promises';
 import type { TimesheetData, TimesheetEntry, EarningsCode } from '../types';
 import { config } from '../config';
@@ -13,56 +15,58 @@ import { parseDate } from '../parsers/dateParser';
 
 const normalize = buildNormalizer();
 
-// ── Prompt ────────────────────────────────────────────────────────────────────
+// ── Lazy client — missing key won't crash on import ───────────────────────────
+let _client: OpenAI | null = null;
+function getClient(): OpenAI {
+  if (!_client) {
+    if (!config.openai.apiKey) {
+      throw new Error('OPENAI_API_KEY is not set — LLM fallback unavailable');
+    }
+    _client = new OpenAI({ apiKey: config.openai.apiKey });
+  }
+  return _client;
+}
 
-const SYSTEM_PROMPT = `You are a precise timesheet data extractor.
-The user will give you a screenshot and/or HTML of a VMS timesheet page.
-Your job is to extract structured timesheet data and return ONLY valid JSON — no markdown, no explanations.
+// ── System prompt ─────────────────────────────────────────────────────────────
+const SYSTEM_PROMPT = `You are a precise timesheet data extractor for VMS portals.
+You will receive a screenshot and/or HTML of a timesheet page.
+Return ONLY a single valid JSON object — no markdown fences, no explanation, no preamble.
 
-Return this exact JSON schema:
+Required JSON schema:
 {
   "employeeName": "string",
-  "timesheetId": "string or empty",
-  "period": "string (date range as shown)",
-  "periodStart": "YYYY-MM-DD or empty",
-  "periodEnd": "YYYY-MM-DD or empty",
+  "timesheetId": "string or empty string",
+  "period": "string (date range exactly as shown on screen)",
+  "periodStart": "YYYY-MM-DD or empty string",
+  "periodEnd": "YYYY-MM-DD or empty string",
   "status": "string",
-  "client": "string or empty",
-  "project": "string or empty",
+  "client": "string or empty string",
+  "project": "string or empty string",
   "entries": [
-    { "date": "YYYY-MM-DD", "hours": number, "rawType": "string as shown", "notes": "string or empty" }
+    { "date": "YYYY-MM-DD", "hours": <number>, "rawType": "string as shown", "notes": "string or empty" }
   ],
-  "totals": {
-    "regular": number,
-    "ot": number,
-    "dt": number,
-    "total": number
-  }
+  "totals": { "regular": <number>, "ot": <number>, "dt": <number>, "total": <number> }
 }
 
 Rules:
-- dates must be in YYYY-MM-DD format
-- hours must be a number (decimal ok)
-- if a field is not visible, use empty string or 0
-- do not invent data — only extract what is clearly visible
-`;
+- All dates MUST be YYYY-MM-DD
+- hours MUST be a number (decimal OK, e.g. 7.5)
+- Empty string "" for any text field not visible
+- 0 for any numeric field not visible
+- Do NOT invent or guess — only extract what is clearly visible`;
 
-// ── HTML trimmer — LLM context window is finite ───────────────────────────────
-
-function trimHtml(html: string, maxChars = 12_000): string {
-  // Strip <script> and <style> blocks — they add noise
-  const stripped = html
+// ── HTML trimmer ──────────────────────────────────────────────────────────────
+function trimHtml(html: string, maxChars = 10_000): string {
+  return html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/\s{2,}/g, ' ')
-    .trim();
-
-  return stripped.length > maxChars ? stripped.slice(0, maxChars) + '\n...[truncated]' : stripped;
+    .trim()
+    .slice(0, maxChars);
 }
 
-// ── Type coercion after LLM response ─────────────────────────────────────────
-
+// ── Response typing + coercion ────────────────────────────────────────────────
 interface LlmResponse {
   employeeName?: string;
   timesheetId?: string;
@@ -72,18 +76,8 @@ interface LlmResponse {
   status?: string;
   client?: string;
   project?: string;
-  entries?: Array<{
-    date?: string;
-    hours?: number | string;
-    rawType?: string;
-    notes?: string;
-  }>;
-  totals?: {
-    regular?: number;
-    ot?: number;
-    dt?: number;
-    total?: number;
-  };
+  entries?: Array<{ date?: string; hours?: number | string; rawType?: string; notes?: string }>;
+  totals?: { regular?: number; ot?: number; dt?: number; total?: number };
 }
 
 function coerceEntries(raw: LlmResponse['entries'] = []): TimesheetEntry[] {
@@ -93,98 +87,90 @@ function coerceEntries(raw: LlmResponse['entries'] = []): TimesheetEntry[] {
       const rawType = e.rawType ?? 'REG';
       const hours = typeof e.hours === 'string' ? parseFloat(e.hours) : (e.hours ?? 0);
       return {
-        date: parseDate(e.date ?? ''),
-        hours: isNaN(hours) ? 0 : hours,
+        date:    parseDate(e.date ?? ''),
+        hours:   isNaN(hours) ? 0 : hours,
         rawType,
-        type: normalize(rawType) as EarningsCode,
-        notes: e.notes || undefined,
+        type:    normalize(rawType) as EarningsCode,
+        notes:   e.notes || undefined,
       };
     });
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
-
+// ── Public ────────────────────────────────────────────────────────────────────
 export async function runLlmFallback(
   screenshotPath: string,
   html: string,
   existingData: TimesheetData,
 ): Promise<TimesheetData> {
-  logger.info('Calling Claude LLM for timesheet extraction…');
+  logger.info(`[LLM] Calling OpenAI ${config.openai.model}…`);
 
-  const client = new Anthropic({ apiKey: config.anthropic.apiKey });
+  const client = getClient();
+  const base64Image = (await fs.readFile(screenshotPath)).toString('base64');
 
-  const screenshotBuffer = await fs.readFile(screenshotPath);
-  const base64Image = screenshotBuffer.toString('base64');
-  const trimmedHtml = trimHtml(html);
-
-  const response = await client.messages.create({
-    model: config.anthropic.model,
-    max_tokens: config.anthropic.maxTokens,
-    system: SYSTEM_PROMPT,
+  const response = await client.chat.completions.create({
+    model:      config.openai.model,
+    max_tokens: config.openai.maxTokens,
     messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
       {
         role: 'user',
         content: [
           {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: 'image/png',
-              data: base64Image,
+            type: 'image_url',
+            image_url: {
+              url:    `data:image/png;base64,${base64Image}`,
+              detail: 'high', // high-res for table data accuracy
             },
           },
           {
             type: 'text',
-            text: `Here is the page HTML (for reference):\n\n${trimmedHtml}\n\nPlease extract the timesheet data.`,
+            text: `Page HTML (truncated for reference):\n\n${trimHtml(html)}\n\nExtract the timesheet data as JSON.`,
           },
         ],
       },
     ],
   });
 
-  const rawText = response.content
-    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-    .map((b) => b.text)
-    .join('');
+  const rawText = response.choices[0]?.message?.content ?? '';
+  logger.debug(`[LLM] finish_reason=${response.choices[0]?.finish_reason} | chars=${rawText.length}`);
 
-  logger.debug(`LLM raw response length: ${rawText.length} chars`);
+  // Strip any accidental markdown fences
+  const cleaned = rawText.replace(/```(?:json)?/gi, '').trim();
 
-  // Parse the JSON response
   let parsed: LlmResponse;
   try {
-    // Strip any accidental markdown fences
-    const cleaned = rawText.replace(/```(?:json)?/g, '').trim();
     parsed = JSON.parse(cleaned);
   } catch (err) {
-    throw new Error(`LLM returned non-JSON response: ${err instanceof Error ? err.message : err}`);
+    throw new Error(
+      `OpenAI returned non-JSON: ${(err as Error).message}\nPreview: ${rawText.slice(0, 300)}`,
+    );
   }
 
-  const entries = coerceEntries(parsed.entries);
+  const entries      = coerceEntries(parsed.entries);
   const computedTotal = entries.reduce((s, e) => s + e.hours, 0);
 
-  // Merge LLM findings over existing data
   return {
     ...existingData,
     metadata: {
       ...existingData.metadata,
       employeeName: parsed.employeeName || existingData.metadata.employeeName,
-      timesheetId: parsed.timesheetId || existingData.metadata.timesheetId,
-      period: parsed.period || existingData.metadata.period,
-      periodStart: parsed.periodStart || existingData.metadata.periodStart,
-      periodEnd: parsed.periodEnd || existingData.metadata.periodEnd,
-      status: parsed.status || existingData.metadata.status,
-      client: parsed.client || existingData.metadata.client,
-      project: parsed.project || existingData.metadata.project,
+      timesheetId:  parsed.timesheetId  || existingData.metadata.timesheetId,
+      period:       parsed.period       || existingData.metadata.period,
+      periodStart:  parsed.periodStart  || existingData.metadata.periodStart,
+      periodEnd:    parsed.periodEnd    || existingData.metadata.periodEnd,
+      status:       parsed.status       || existingData.metadata.status,
+      client:       parsed.client       || existingData.metadata.client,
+      project:      parsed.project      || existingData.metadata.project,
     },
     entries: entries.length >= existingData.entries.length ? entries : existingData.entries,
     totals: {
-      regular: parsed.totals?.regular ?? existingData.totals.regular,
-      ot: parsed.totals?.ot ?? existingData.totals.ot,
-      dt: parsed.totals?.dt ?? existingData.totals.dt,
-      holiday: existingData.totals.holiday,
-      sick: existingData.totals.sick,
+      regular:  parsed.totals?.regular  ?? existingData.totals.regular,
+      ot:       parsed.totals?.ot       ?? existingData.totals.ot,
+      dt:       parsed.totals?.dt       ?? existingData.totals.dt,
+      holiday:  existingData.totals.holiday,
+      sick:     existingData.totals.sick,
       vacation: existingData.totals.vacation,
-      total: parsed.totals?.total ?? computedTotal,
+      total:    parsed.totals?.total    ?? computedTotal,
     },
   };
 }

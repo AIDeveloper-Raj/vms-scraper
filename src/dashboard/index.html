@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VMS Scraper Dashboard</title>
+<style>
+  :root{--bg:#0f1117;--surface:#1a1d27;--border:#2a2d3e;--accent:#4f8ef7;--green:#22c55e;--red:#ef4444;--yellow:#eab308;--text:#e2e8f0;--muted:#64748b;--radius:10px;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;}
+  .layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh;}
+  .sidebar{background:var(--surface);border-right:1px solid var(--border);padding:20px 14px;display:flex;flex-direction:column;gap:4px;}
+  .main{padding:24px;overflow-y:auto;max-height:100vh;}
+  .logo{font-size:15px;font-weight:700;color:var(--accent);padding:0 8px 16px;border-bottom:1px solid var(--border);margin-bottom:8px;}
+  .nav-item{padding:9px 12px;border-radius:8px;cursor:pointer;color:var(--muted);transition:all .15s;display:flex;align-items:center;gap:10px;font-size:13px;}
+  .nav-item:hover,.nav-item.active{background:rgba(79,142,247,.1);color:var(--accent);}
+  .nav-item svg{width:15px;height:15px;flex-shrink:0;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+  .card-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:12px;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .stat-value{font-size:30px;font-weight:700;line-height:1;}
+  .acc-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:10px;transition:border-color .15s;}
+  .acc-card:hover{border-color:var(--accent);}
+  .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .dot-running{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 1.5s infinite;}
+  .dot-idle{background:var(--muted);}
+  .dot-failed{background:var(--red);}
+  .acc-name{font-weight:600;font-size:14px;}
+  .acc-meta{color:var(--muted);font-size:11px;margin-top:2px;}
+  .acc-stats{margin-left:auto;text-align:right;flex-shrink:0;}
+  .acc-stats .big{font-size:20px;font-weight:700;}
+  .acc-stats .tiny{font-size:11px;color:var(--muted);}
+  .acc-actions{display:flex;gap:6px;margin-left:12px;flex-shrink:0;}
+  .btn{padding:7px 16px;border-radius:7px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;}
+  .btn-run{background:rgba(79,142,247,.15);border:1px solid var(--accent);color:var(--accent);}
+  .btn-run:hover:not(:disabled){background:var(--accent);color:white;}
+  .btn-run:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-icon{background:none;border:1px solid var(--border);color:var(--muted);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px;}
+  .btn-icon:hover{border-color:var(--text);color:var(--text);}
+  .btn-del:hover{border-color:var(--red);color:var(--red);}
+  .btn-primary{background:var(--accent);color:white;padding:9px 22px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;}
+  .btn-primary:hover{background:#3b7de8;}
+  .btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:9px 22px;border-radius:8px;cursor:pointer;font-size:13px;}
+  .btn-danger{background:rgba(239,68,68,.12);border:1px solid var(--red);color:var(--red);padding:7px 16px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;}
+  .log-panel{background:#090b0f;border:1px solid var(--border);border-radius:var(--radius);padding:14px;overflow-y:auto;font-family:'Courier New',monospace;font-size:12px;}
+  .log-line{padding:1px 0;line-height:1.7;}
+  .log-info{color:#94a3b8;}.log-warn{color:var(--yellow);}.log-error{color:var(--red);}.log-debug{color:#334155;}
+  .log-ts{color:#2d3f55;margin-right:8px;}.log-acc{color:var(--accent);margin-right:4px;}
+  table{width:100%;border-collapse:collapse;}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--border);}
+  td{padding:10px 12px;border-bottom:1px solid rgba(42,45,62,.5);font-size:13px;}
+  tr:last-child td{border-bottom:none;}
+  tr.clickable{cursor:pointer;}
+  tr.clickable:hover td{background:rgba(79,142,247,.05);}
+  .badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;text-transform:uppercase;}
+  .badge-completed,.badge-unchanged{background:rgba(34,197,94,.12);color:var(--green);}
+  .badge-running{background:rgba(79,142,247,.12);color:var(--accent);}
+  .badge-failed{background:rgba(239,68,68,.12);color:var(--red);}
+  .badge-new{background:rgba(79,142,247,.15);color:var(--accent);}
+  .badge-changed{background:rgba(234,179,8,.15);color:var(--yellow);}
+  .badge-removed{background:rgba(239,68,68,.15);color:var(--red);}
+  /* Flag pills */
+  .flag-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid transparent;transition:all .15s;}
+  .flag-pill.active,.flag-pill:hover{opacity:1;}
+  .flag-pill{opacity:.7;}
+  .fp-new{background:rgba(79,142,247,.15);color:var(--accent);border-color:rgba(79,142,247,.3);}
+  .fp-changed{background:rgba(234,179,8,.15);color:var(--yellow);border-color:rgba(234,179,8,.3);}
+  .fp-unchanged{background:rgba(34,197,94,.1);color:var(--green);border-color:rgba(34,197,94,.3);}
+  .fp-removed{background:rgba(239,68,68,.12);color:var(--red);border-color:rgba(239,68,68,.3);}
+  .fp-all{background:var(--surface);color:var(--text);border-color:var(--border);}
+  /* Confidence bar */
+  .conf-bar{display:flex;align-items:center;gap:6px;}
+  .conf-track{flex:1;height:4px;background:var(--border);border-radius:2px;min-width:50px;}
+  .conf-fill{height:100%;border-radius:2px;background:var(--green);}
+  .conf-fill.low{background:var(--red);}
+  .conf-fill.mid{background:var(--yellow);}
+  /* Modal + Overlay */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+  .modal-overlay.open{opacity:1;pointer-events:all;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;width:460px;max-width:95vw;}
+  .modal-title{font-size:16px;font-weight:700;margin-bottom:20px;}
+  /* Detail panel (side drawer) */
+  .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150;opacity:0;pointer-events:none;transition:opacity .2s;}
+  .drawer-overlay.open{opacity:1;pointer-events:all;}
+  .drawer{position:fixed;top:0;right:-520px;width:500px;height:100vh;background:var(--surface);border-left:1px solid var(--border);z-index:160;overflow-y:auto;transition:right .25s ease;padding:24px;}
+  .drawer.open{right:0;}
+  .drawer-title{font-size:17px;font-weight:700;margin-bottom:4px;}
+  .drawer-sub{font-size:12px;color:var(--muted);margin-bottom:20px;}
+  .detail-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(42,45,62,.5);font-size:13px;}
+  .detail-label{color:var(--muted);}
+  .entries-table{width:100%;margin-top:12px;border-collapse:collapse;}
+  .entries-table th{font-size:11px;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border);}
+  .entries-table td{padding:8px;border-bottom:1px solid rgba(42,45,62,.4);font-size:13px;}
+  /* Screenshot lightbox */
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+  .lightbox.open{opacity:1;pointer-events:all;}
+  .lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;border:1px solid var(--border);}
+  .lightbox-close{position:fixed;top:20px;right:24px;background:rgba(255,255,255,.1);border:none;color:white;font-size:20px;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  /* Form */
+  .form-group{margin-bottom:16px;}
+  .form-label{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px;display:block;text-transform:uppercase;letter-spacing:.06em;}
+  .form-input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:7px;font-size:13px;}
+  .form-input:focus{outline:none;border-color:var(--accent);}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  select.form-input{cursor:pointer;}
+  .toggle{position:relative;display:inline-block;width:36px;height:20px;cursor:pointer;}
+  .toggle input{opacity:0;width:0;height:0;}
+  .toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:20px;transition:.2s;}
+  .toggle-slider:before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:white;border-radius:50%;transition:.2s;}
+  input:checked+.toggle-slider{background:var(--green);}
+  input:checked+.toggle-slider:before{transform:translateX(16px);}
+  .page{display:none;}.page.active{display:block;}
+  .page-title{font-size:19px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .toast{position:fixed;bottom:22px;right:22px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 18px;font-size:13px;z-index:400;opacity:0;transform:translateY(6px);transition:all .2s;pointer-events:none;}
+  .toast.show{opacity:1;transform:translateY(0);}
+  .toast.success{border-color:var(--green);color:var(--green);}
+  .toast.error{border-color:var(--red);color:var(--red);}
+  .empty-state{text-align:center;padding:40px;color:var(--muted);}
+  .filter-bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;align-items:center;}
+  .search-input{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:7px;font-size:13px;width:200px;}
+  .search-input:focus{outline:none;border-color:var(--accent);}
+  .pagination{display:flex;gap:6px;margin-top:14px;justify-content:center;}
+  .page-btn{padding:6px 12px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;cursor:pointer;font-size:12px;}
+  .page-btn.active,.page-btn:hover{background:var(--accent);border-color:var(--accent);color:white;}
+  .screenshot-btn{background:none;border:none;cursor:pointer;font-size:16px;padding:2px 6px;border-radius:4px;transition:background .15s;}
+  .screenshot-btn:hover{background:rgba(79,142,247,.15);}
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="sidebar">
+    <div class="logo">⚙ VMS Scraper</div>
+    <div class="nav-item active" data-page="overview" onclick="nav(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Overview
+    </div>
+    <div class="nav-item" data-page="records" onclick="nav(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Records
+    </div>
+    <div class="nav-item" data-page="accounts" onclick="nav(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Accounts
+    </div>
+    <div class="nav-item" data-page="runs" onclick="nav(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Run History
+    </div>
+    <div class="nav-item" data-page="logs" onclick="nav(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Live Logs
+    </div>
+    <div class="nav-item" data-page="settings" onclick="nav(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings
+    </div>
+    <div style="margin-top:auto;padding:10px 8px;border-top:1px solid var(--border)">
+      <div id="sys-pages" style="font-size:11px;color:var(--muted)">Pages: —</div>
+      <div id="last-refresh" style="font-size:11px;color:var(--muted);margin-top:2px">—</div>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- OVERVIEW -->
+    <div id="page-overview" class="page active">
+      <div class="page-title">Overview</div>
+      <div class="grid-3">
+        <div class="card"><div class="card-title">Today — Total</div><div class="stat-value" id="s-total">—</div></div>
+        <div class="card"><div class="card-title">Today — Passed</div><div class="stat-value" style="color:var(--green)" id="s-passed">—</div></div>
+        <div class="card"><div class="card-title">Today — Failed</div><div class="stat-value" style="color:var(--red)" id="s-failed">—</div></div>
+      </div>
+      <div class="card-title" style="margin-bottom:10px">Accounts</div>
+      <div id="overview-accounts">Loading…</div>
+      <div style="margin-top:18px">
+        <div class="card-title" style="margin-bottom:8px">Recent Activity</div>
+        <div class="log-panel" id="mini-log" style="height:220px"></div>
+      </div>
+    </div>
+
+    <!-- RECORDS -->
+    <div id="page-records" class="page">
+      <div class="page-title">
+        Records
+        <span id="records-count" style="font-size:13px;font-weight:400;color:var(--muted)"></span>
+      </div>
+
+      <!-- Flag pills -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <span class="flag-pill fp-all active"   onclick="setFlagFilter('',this)">All</span>
+        <span class="flag-pill fp-new"           onclick="setFlagFilter('new',this)">🆕 New</span>
+        <span class="flag-pill fp-changed"       onclick="setFlagFilter('changed',this)">🔄 Changed</span>
+        <span class="flag-pill fp-unchanged"     onclick="setFlagFilter('unchanged',this)">✅ Unchanged</span>
+        <span class="flag-pill fp-removed"       onclick="setFlagFilter('removed',this)">🗑 Removed</span>
+        <div id="flag-counts" style="margin-left:auto;display:flex;gap:10px;font-size:12px;color:var(--muted);align-items:center"></div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <input class="search-input" id="rec-search" placeholder="Search employee, TS ID, client…" oninput="debounceSearch()">
+        <select class="form-input" id="rec-account" style="width:160px" onchange="loadRecords(1)">
+          <option value="">All accounts</option>
+        </select>
+        <select class="form-input" id="rec-status" style="width:140px" onchange="loadRecords(1)">
+          <option value="">All statuses</option>
+          <option>Invoiced</option>
+          <option>Pending Approval</option>
+          <option>Approved</option>
+          <option>Rejected</option>
+        </select>
+      </div>
+
+      <div class="card" style="padding:0;overflow:hidden">
+        <table>
+          <thead>
+            <tr>
+              <th>Employee</th><th>TS ID</th><th>Period</th><th>Client</th>
+              <th>Status</th><th>Hours</th><th>Confidence</th><th>Flag</th><th>📷</th>
+            </tr>
+          </thead>
+          <tbody id="records-table">
+            <tr><td colspan="9" class="empty-state">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" id="rec-pagination"></div>
+    </div>
+
+    <!-- ACCOUNTS -->
+    <div id="page-accounts" class="page">
+      <div class="page-title">Accounts <button class="btn-primary" onclick="openModal()">+ Add Account</button></div>
+      <div id="accounts-list">Loading…</div>
+    </div>
+
+    <!-- RUNS -->
+    <div id="page-runs" class="page">
+      <div class="page-title">
+        Run History
+        <select id="runs-filter" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:12px" onchange="loadRuns()">
+          <option value="">All accounts</option>
+        </select>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Account</th><th>Started</th><th>Duration</th><th>Total</th><th>✓</th><th>✗</th><th>Status</th></tr></thead>
+          <tbody id="runs-table"><tr><td colspan="7" class="empty-state">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- LOGS -->
+    <div id="page-logs" class="page">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="page-title" style="margin:0">Live Logs</div>
+        <div style="display:flex;gap:8px">
+          <select id="log-filter" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:12px">
+            <option value="">All</option><option value="info">Info</option><option value="warn">Warn</option><option value="error">Error</option>
+          </select>
+          <button class="btn-danger" onclick="clearLogs()">Clear</button>
+        </div>
+      </div>
+      <div class="log-panel" id="full-log" style="height:calc(100vh - 150px)"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="page-settings" class="page">
+      <div class="page-title">Settings</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Scraper</div>
+          <div class="form-group"><label class="form-label">Concurrency per account</label><input class="form-input" id="cfg-concurrency" type="number" min="1" max="5"></div>
+          <div class="form-group"><label class="form-label">Max global browser pages</label><input class="form-input" id="cfg-global-pages" type="number" min="2" max="20"></div>
+          <div class="form-group"><label class="form-label">Max records per run (0 = all)</label><input class="form-input" id="cfg-max-records" type="number" min="0"></div>
+          <div class="form-group"><label class="form-label">Schedule — hours between runs</label><input class="form-input" id="cfg-schedule" type="number" min="1" max="24"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Dashboard</div>
+          <div class="form-group"><label class="form-label">Port</label><input class="form-input" id="cfg-port"></div>
+          <div class="form-group"><label class="form-label">Username</label><input class="form-input" id="cfg-dash-user"></div>
+          <div class="form-group"><label class="form-label">Password</label><input class="form-input" type="password" id="cfg-dash-pass" placeholder="(leave blank to keep current)"></div>
+        </div>
+      </div>
+      <div style="margin-top:18px;display:flex;gap:12px;align-items:center">
+        <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
+        <span style="font-size:12px;color:var(--muted)">Restart required for changes to take effect.</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Account Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Add Account</div>
+    <input type="hidden" id="modal-mode" value="add">
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">ID *</label><input class="form-input" id="m-id" placeholder="abtl"></div>
+      <div class="form-group"><label class="form-label">Label *</label><input class="form-input" id="m-label" placeholder="Abbott Laboratories"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Username *</label><input class="form-input" id="m-user" placeholder="cynet.abtl"></div>
+      <div class="form-group"><label class="form-label">Password *</label><input class="form-input" type="password" id="m-pass" placeholder="••••••••"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">VMS Type</label><select class="form-input" id="m-vms"><option value="fieldglass">Fieldglass</option><option value="beeline">Beeline</option></select></div>
+      <div class="form-group"><label class="form-label">Base URL</label><input class="form-input" id="m-url" placeholder="https://www.us.fieldglass.cloud.sap"></div>
+    </div>
+    <div class="form-group" style="display:flex;align-items:center;gap:10px">
+      <label class="toggle"><input type="checkbox" id="m-enabled" checked><span class="toggle-slider"></span></label>
+      <span style="font-size:13px">Enabled</span>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveAccount()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Record Detail Drawer -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="detail-drawer">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+    <div>
+      <div class="drawer-title" id="d-name">—</div>
+      <div class="drawer-sub" id="d-sub">—</div>
+    </div>
+    <button class="btn-icon" onclick="closeDrawer()">✕</button>
+  </div>
+  <div id="d-meta"></div>
+  <div style="margin-top:20px">
+    <div class="card-title" style="margin-bottom:8px">Time Entries</div>
+    <table class="entries-table">
+      <thead><tr><th>Date</th><th>Hours</th><th>Type</th><th>Raw Code</th></tr></thead>
+      <tbody id="d-entries"></tbody>
+    </table>
+  </div>
+  <div id="d-totals" style="margin-top:16px;padding:12px;background:var(--bg);border-radius:8px;font-size:13px;line-height:2"></div>
+  <div id="d-conf" style="margin-top:12px"></div>
+</div>
+
+<!-- Screenshot Lightbox -->
+<div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="Screenshot">
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let ws, logLines=[], currentAccounts=[], recPage=1, recFlagFilter='', searchTimer;
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function nav(el){
+  const p=el.dataset.page;
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  el.classList.add('active');
+  if(p==='runs')loadRuns();
+  if(p==='accounts')loadAccountsPage();
+  if(p==='settings')loadSettings();
+  if(p==='records'){loadRecords(1);loadFlagCounts();}
+}
+
+function toast(msg,type='success'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.className='toast show '+type;
+  setTimeout(()=>el.classList.remove('show'),3500);
+}
+
+// ── Overview ──────────────────────────────────────────────────────────────────
+async function loadStatus(){
+  try{
+    const d=await fetch('/api/status').then(r=>r.json());
+    currentAccounts=d.accounts;
+    document.getElementById('s-total').textContent=d.today.total;
+    document.getElementById('s-passed').textContent=d.today.passed;
+    document.getElementById('s-failed').textContent=d.today.failed;
+    document.getElementById('sys-pages').textContent=`Pages: ${d.system.activePages}/${d.system.maxPages}`;
+    document.getElementById('last-refresh').textContent='Updated '+new Date().toLocaleTimeString();
+    renderOverview(d.accounts);
+    populateAccountDropdowns(d.accounts);
+  }catch(e){console.error(e);}
+}
+
+function renderOverview(accounts){
+  const el=document.getElementById('overview-accounts');
+  if(!accounts.length){el.innerHTML='<div class="empty-state">No accounts. Go to Accounts tab to add one.</div>';return;}
+  el.innerHTML=accounts.map(a=>{
+    const dot=a.running?'dot-running':(a.lastRun?.status==='failed'?'dot-failed':'dot-idle');
+    return`<div class="acc-card${!a.enabled?' disabled':''}">
+      <div class="dot ${dot}"></div>
+      <div style="min-width:0">
+        <div class="acc-name">${esc(a.label)}</div>
+        <div class="acc-meta">${esc(a.username)} · ${a.vmsType}</div>
+        <div class="acc-meta">Last: ${a.lastRun?fmtTime(a.lastRun.started_at):'Never'} · ${a.lastRun?.duration_ms?fmtDur(a.lastRun.duration_ms):'—'}</div>
+      </div>
+      <div class="acc-stats"><div class="big">${a.lastRun?.passed??0}</div><div class="tiny">last run</div></div>
+      <div class="acc-actions">
+        <button class="btn btn-run"${(a.running||!a.enabled)?' disabled':''} onclick="triggerRun('${a.id}',this)">
+          ${a.running?'⏳ Running':'▶ Run Now'}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function triggerRun(id,btn){
+  btn.disabled=true;btn.textContent='⏳ Starting…';
+  const res=await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accountId:id})}).then(r=>r.json());
+  toast(res.ok?`Run started for ${id}`:res.error,res.ok?'success':'error');
+  if(res.ok)setTimeout(loadStatus,1500);
+  else{btn.disabled=false;btn.textContent='▶ Run Now';}
+}
+
+// ── Records page ──────────────────────────────────────────────────────────────
+async function loadRecords(page=1){
+  recPage=page;
+  const acc    = document.getElementById('rec-account')?.value||'';
+  const status = document.getElementById('rec-status')?.value||'';
+  const search = document.getElementById('rec-search')?.value||'';
+  const limit  = 50;
+  const offset = (page-1)*limit;
+
+  const params = new URLSearchParams({limit,offset});
+  if(acc)    params.set('account',acc);
+  if(status) params.set('status',status);
+  if(search) params.set('search',search);
+  if(recFlagFilter) params.set('flag',recFlagFilter);
+
+  const {rows,total} = await fetch('/api/records?'+params).then(r=>r.json());
+  const tbody = document.getElementById('records-table');
+  document.getElementById('records-count').textContent=`${total} records`;
+
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="9" class="empty-state">No records found</td></tr>';return;}
+
+  tbody.innerHTML = rows.map(r=>{
+    const conf    = Math.round((r.confidence||0)*100);
+    const confCls = conf>=85?'':'conf-fill '+(conf>=70?'mid':'low');
+    const ssPath  = r.screenshot_path ? `/screenshots/${encodeURIComponent(r.ts_id)}.png` : null;
+    return`<tr class="clickable" onclick="openDetail('${r.ts_id}','${r.account||acc||''}')">
+      <td><b>${esc(r.employee||'—')}</b></td>
+      <td style="font-family:monospace;font-size:12px">${esc(r.ts_id)}</td>
+      <td style="color:var(--muted);font-size:12px">${formatPeriod(r.period_start,r.period_end)}</td>
+      <td style="color:var(--muted);font-size:12px">${esc(r.client||'—')}</td>
+      <td><span class="badge badge-${(r.status||'').toLowerCase().replace(/\s+/g,'-')}">${esc(r.status||'—')}</span></td>
+      <td>${(r.total_hours||0).toFixed(2)}h</td>
+      <td>
+        <div class="conf-bar">
+          <div class="conf-track"><div class="conf-fill ${confCls}" style="width:${conf}%"></div></div>
+          <span style="font-size:11px;color:var(--muted);width:32px">${conf}%</span>
+        </div>
+      </td>
+      <td>${flagBadge(r.flag)}</td>
+      <td>${ssPath?`<button class="screenshot-btn" onclick="event.stopPropagation();openLightbox('${ssPath}')" title="View screenshot">🖼</button>`:'—'}</td>
+    </tr>`;
+  }).join('');
+
+  renderPagination(total, limit, page);
+}
+
+function renderPagination(total, limit, current){
+  const pages = Math.ceil(total/limit);
+  const el = document.getElementById('rec-pagination');
+  if(pages<=1){el.innerHTML='';return;}
+  let html='';
+  for(let i=1;i<=Math.min(pages,10);i++){
+    html+=`<button class="page-btn${i===current?' active':''}" onclick="loadRecords(${i})">${i}</button>`;
+  }
+  el.innerHTML=html;
+}
+
+async function loadFlagCounts(){
+  const acc = document.getElementById('rec-account')?.value||'';
+  const params = new URLSearchParams();
+  if(acc) params.set('account',acc);
+  const counts = await fetch('/api/records/flags?'+params).then(r=>r.json());
+  const el = document.getElementById('flag-counts');
+  el.innerHTML = Object.entries(counts).map(([f,c])=>`<span>${flagBadge(f)} ${c}</span>`).join('');
+}
+
+function setFlagFilter(flag, el){
+  recFlagFilter=flag;
+  document.querySelectorAll('.flag-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  loadRecords(1);
+}
+
+function debounceSearch(){
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(()=>loadRecords(1),300);
+}
+
+function flagBadge(flag){
+  const map={
+    new:       '<span class="badge badge-new">🆕 new</span>',
+    changed:   '<span class="badge badge-changed">🔄 changed</span>',
+    unchanged: '<span class="badge badge-unchanged">✅ same</span>',
+    removed:   '<span class="badge badge-removed">🗑 removed</span>',
+  };
+  return map[flag]||`<span class="badge">${esc(flag||'—')}</span>`;
+}
+
+function formatPeriod(start,end){
+  if(!start&&!end)return'—';
+  const fmt=d=>{if(!d)return'';const p=d.split('-');return p.length===3?`${p[1]}/${p[2]}`:d;};
+  return `${fmt(start)}–${fmt(end)}`;
+}
+
+// ── Detail drawer ─────────────────────────────────────────────────────────────
+async function openDetail(tsId, account){
+  const params = new URLSearchParams();
+  if(account) params.set('account',account);
+  const {record, fullData} = await fetch(`/api/records/${tsId}?${params}`).then(r=>r.json());
+
+  document.getElementById('d-name').textContent = fullData?.metadata?.employeeName || record?.employee || tsId;
+  document.getElementById('d-sub').textContent  =
+    `${esc(tsId)} · ${esc(record?.client||fullData?.metadata?.client||'—')} · ${esc(record?.status||'—')}`;
+
+  const meta = [
+    ['Period',      formatPeriod(record?.period_start, record?.period_end)],
+    ['Account',     account||'—'],
+    ['Scraped',     record?.scraped_at ? fmtTime(record.scraped_at) : '—'],
+    ['Flag',        flagBadge(record?.flag)],
+    ['Fallback',    record?.fallback||'none'],
+  ];
+  document.getElementById('d-meta').innerHTML = meta.map(([l,v])=>
+    `<div class="detail-row"><span class="detail-label">${l}</span><span>${v}</span></div>`).join('');
+
+  const entries = fullData?.entries || [];
+  document.getElementById('d-entries').innerHTML = entries.length
+    ? entries.map(e=>`<tr>
+        <td style="font-family:monospace">${e.date}</td>
+        <td>${e.hours}h</td>
+        <td><span class="badge badge-${e.type?.toLowerCase()||'reg'}">${e.type||'—'}</span></td>
+        <td style="color:var(--muted);font-size:12px">${esc(e.rawType||'—')}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="4" style="color:var(--muted);padding:12px">No entry data available</td></tr>';
+
+  const t = fullData?.totals || record || {};
+  const conf = Math.round((record?.confidence||0)*100);
+  document.getElementById('d-totals').innerHTML =
+    `REG: <b>${(t.regular||t.reg_hours||0).toFixed(2)}h</b>&nbsp;&nbsp;
+     OT: <b>${(t.ot||t.ot_hours||0).toFixed(2)}h</b>&nbsp;&nbsp;
+     DT: <b>${(t.dt||t.dt_hours||0).toFixed(2)}h</b>&nbsp;&nbsp;
+     Total: <b>${(t.total||t.total_hours||0).toFixed(2)}h</b>`;
+  document.getElementById('d-conf').innerHTML =
+    `<div style="display:flex;align-items:center;gap:10px;font-size:13px">
+      Confidence <div class="conf-track" style="width:100px">
+        <div class="conf-fill ${conf>=85?'':conf>=70?'mid':'low'}" style="width:${conf}%"></div>
+      </div> ${conf}%
+    </div>`;
+
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.getElementById('detail-drawer').classList.add('open');
+}
+
+function closeDrawer(){
+  document.getElementById('drawer-overlay').classList.remove('open');
+  document.getElementById('detail-drawer').classList.remove('open');
+}
+
+// ── Screenshot lightbox ───────────────────────────────────────────────────────
+function openLightbox(src){
+  document.getElementById('lightbox-img').src=src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox(){
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightbox-img').src='';
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){closeLightbox();closeDrawer();closeModal();} });
+
+// ── Accounts page ─────────────────────────────────────────────────────────────
+async function loadAccountsPage(){
+  const accounts=await fetch('/api/accounts').then(r=>r.json());
+  const el=document.getElementById('accounts-list');
+  if(!accounts.length){
+    el.innerHTML='<div class="empty-state" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">No accounts yet.</div>';return;
+  }
+  el.innerHTML=accounts.map(a=>`
+    <div class="acc-card${!a.enabled?' disabled':''}">
+      <div class="dot dot-idle" style="${!a.enabled?'opacity:.3':''}"></div>
+      <div style="min-width:0;flex:1">
+        <div class="acc-name">${esc(a.label)}</div>
+        <div class="acc-meta">${esc(a.username)} · ${a.vmsType} · ${esc(a.baseUrl)}</div>
+      </div>
+      <label class="toggle"><input type="checkbox"${a.enabled?' checked':''} onchange="toggleAccount('${a.id}',this.checked)"><span class="toggle-slider"></span></label>
+      <div class="acc-actions">
+        <button class="btn-icon" onclick='editAccount(${JSON.stringify(a)})'>✏</button>
+        <button class="btn-icon btn-del" onclick="deleteAccount('${a.id}','${esc(a.label)}')">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function populateAccountDropdowns(accounts){
+  ['rec-account','runs-filter'].forEach(id=>{
+    const sel=document.getElementById(id);
+    if(!sel)return;
+    const cur=sel.value;
+    const first=id==='runs-filter'?'<option value="">All accounts</option>':'<option value="">All accounts</option>';
+    sel.innerHTML=first+accounts.map(a=>`<option value="${a.id}"${a.id===cur?' selected':''}>${esc(a.label)}</option>`).join('');
+  });
+}
+
+function openModal(acc=null){
+  document.getElementById('modal-mode').value=acc?'edit':'add';
+  document.getElementById('modal-title').textContent=acc?'Edit Account':'Add Account';
+  document.getElementById('m-id').value=acc?.id||'';
+  document.getElementById('m-id').disabled=!!acc;
+  document.getElementById('m-label').value=acc?.label||'';
+  document.getElementById('m-user').value=acc?.username||'';
+  document.getElementById('m-pass').value='';
+  document.getElementById('m-pass').placeholder=acc?'(leave blank to keep current)':'••••••••';
+  document.getElementById('m-vms').value=acc?.vmsType||'fieldglass';
+  document.getElementById('m-url').value=acc?.baseUrl||'https://www.us.fieldglass.cloud.sap';
+  document.getElementById('m-enabled').checked=acc?acc.enabled:true;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open');}
+function editAccount(acc){openModal(acc);}
+
+async function saveAccount(){
+  const mode=document.getElementById('modal-mode').value;
+  const payload={
+    id:document.getElementById('m-id').value.trim().toLowerCase().replace(/\s+/g,'_'),
+    label:document.getElementById('m-label').value.trim(),
+    username:document.getElementById('m-user').value.trim(),
+    password:document.getElementById('m-pass').value,
+    vmsType:document.getElementById('m-vms').value,
+    baseUrl:document.getElementById('m-url').value.trim(),
+    enabled:document.getElementById('m-enabled').checked,
+  };
+  if(!payload.id||!payload.username){toast('ID and username required','error');return;}
+  if(mode==='add'&&!payload.password){toast('Password required','error');return;}
+  const res=await fetch('/api/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json());
+  toast(res.ok?res.message:res.error,res.ok?'success':'error');
+  if(res.ok){closeModal();loadAccountsPage();loadStatus();}
+}
+
+async function deleteAccount(id,label){
+  if(!confirm(`Delete "${label}"?`))return;
+  const res=await fetch(`/api/accounts/${id}`,{method:'DELETE'}).then(r=>r.json());
+  toast(res.ok?'Deleted':res.error,res.ok?'success':'error');
+  if(res.ok){loadAccountsPage();loadStatus();}
+}
+
+async function toggleAccount(id,enabled){
+  await fetch(`/api/accounts/${id}/toggle`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled})});
+  loadStatus();
+}
+
+// ── Run history ───────────────────────────────────────────────────────────────
+async function loadRuns(){
+  const acc=document.getElementById('runs-filter').value;
+  const rows=await fetch('/api/runs?limit=100'+(acc?`&account=${acc}`:'')).then(r=>r.json());
+  const map=Object.fromEntries(currentAccounts.map(a=>[a.id,a.label]));
+  const tbody=document.getElementById('runs-table');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="7" class="empty-state">No runs yet</td></tr>';return;}
+  tbody.innerHTML=rows.map(r=>`<tr>
+    <td><b>${esc(map[r.account]||r.account)}</b></td>
+    <td style="color:var(--muted)">${fmtTime(r.started_at)}</td>
+    <td>${r.duration_ms?fmtDur(r.duration_ms):'—'}</td>
+    <td>${r.total}</td><td style="color:var(--green)">${r.passed}</td>
+    <td style="color:var(--red)">${r.failed}</td>
+    <td><span class="badge badge-${r.status}">${r.status}</span></td>
+  </tr>`).join('');
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+async function loadSettings(){
+  const s=await fetch('/api/settings').then(r=>r.json());
+  document.getElementById('cfg-concurrency').value=s.maxConcurrency||'2';
+  document.getElementById('cfg-global-pages').value=s.maxGlobalPages||'6';
+  document.getElementById('cfg-max-records').value=s.maxRecords||'0';
+  document.getElementById('cfg-schedule').value=s.scheduleHours||'2';
+  document.getElementById('cfg-port').value=s.dashboardPort||'4000';
+  document.getElementById('cfg-dash-user').value=s.dashboardUser||'';
+}
+
+async function saveSettings(){
+  const p={
+    MAX_CONCURRENCY:document.getElementById('cfg-concurrency').value,
+    MAX_GLOBAL_PAGES:document.getElementById('cfg-global-pages').value,
+    MAX_RECORDS:document.getElementById('cfg-max-records').value,
+    SCHEDULE_HOURS:document.getElementById('cfg-schedule').value,
+    DASHBOARD_PORT:document.getElementById('cfg-port').value,
+    DASHBOARD_USER:document.getElementById('cfg-dash-user').value,
+  };
+  const pass=document.getElementById('cfg-dash-pass').value;
+  if(pass)p['DASHBOARD_PASS']=pass;
+  const res=await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}).then(r=>r.json());
+  toast(res.ok?res.message:res.error,res.ok?'success':'error');
+}
+
+// ── WebSocket ─────────────────────────────────────────────────────────────────
+function connectWs(){
+  const proto=location.protocol==='https:'?'wss':'ws';
+  ws=new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==='log')appendLog(m);if(m.type==='status')loadStatus();};
+  ws.onclose=()=>setTimeout(connectWs,3000);ws.onerror=()=>ws.close();
+}
+
+function appendLog(msg){
+  const line={level:msg.level||'info',ts:msg.ts,text:msg.message,account:msg.account};
+  logLines.push(line);if(logLines.length>600)logLines.shift();
+  renderLine(line,'mini-log',60);renderLine(line,'full-log',9999);
+}
+
+function renderLine(line,id,max){
+  const el=document.getElementById(id);if(!el)return;
+  const f=document.getElementById('log-filter')?.value||'';
+  if(f&&line.level!==f)return;
+  const div=document.createElement('div');
+  div.className=`log-line log-${line.level}`;
+  const ts=line.ts?new Date(line.ts).toLocaleTimeString():'';
+  const acc=line.account?`<span class="log-acc">[${esc(line.account)}]</span>`:'';
+  div.innerHTML=`<span class="log-ts">${ts}</span>${acc}${esc(line.text)}`;
+  el.appendChild(div);el.scrollTop=el.scrollHeight;
+  while(el.children.length>max)el.removeChild(el.firstChild);
+}
+
+function clearLogs(){logLines=[];document.getElementById('full-log').innerHTML='';}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtTime(iso){if(!iso)return'—';const d=new Date(iso);return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
+function fmtDur(ms){if(ms<60000)return Math.round(ms/1000)+'s';return Math.floor(ms/60000)+'m '+Math.floor((ms%60000)/1000)+'s';}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadStatus();connectWs();setInterval(loadStatus,10000);
+fetch('/api/logs').then(r=>r.json()).then(d=>{
+  (d.lines||[]).forEach(l=>appendLog({level:l.level||'info',ts:l.timestamp,message:l.message}));
+});
+</script>
+</body>
+</html>

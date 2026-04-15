@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+
+    <script type="text/javascript"
+        src="/scripts/jquery/fg-unified-jquery.v8bd302b7e36fb8b242e8a1cc22049ebf.js"></script>
+
+
+    <script type="text/javascript" src="/scripts/browser.v8fc6afc570a43fd3b110daebab3793f2.js"></script>
+
+    <script type="text/javascript" src="/scripts/login.vaf1c1e765e71d9d4c46d6d331255ffc1.js"></script>
+
+    <script type="text/javascript" src="/scripts/reverse_tab_nabber.vaf9b414db0fab6eac2dc0c4cad5c7b13.js"></script>
+
+    <script type="text/javascript" src="/scripts/cookie_consent_manager.v6bcad5ad8758528b5e1fcf1179241c3e.js"></script>
+
+    <script type='text/javascript'>
+        window.SAP = window.SAP || {};
+        window.SAP.global = {
+            trustArc: {
+                domain: 'www.fieldglass.net',
+                createCodeWrappers: false,
+                privacyPolicyLink: '/PrivacyPolicy.en_US.pdf',
+                cookieLink: '/CookiePolicy.en_US.pdf'
+            },
+            isProd: true
+        };
+    </script>
+    <script src="https://www.sap.com/sharedlibs/globaltop/script-latest.min.js"></script>
+
+    <style>
+        html {
+            display: none;
+        }
+    </style>
+
+    <script type="text/javascript">
+        if (self == top) {
+            document.documentElement.style.display = 'block';
+        } else {
+            top.location = self.location;
+        }
+        //we are loading the login page inside a regular page,
+        //-->need to reload the regular login page
+        if ($("body.layoutBase").length > 0) {
+            location.href = "/login.do";
+        }
+
+    </script>
+
+
+
+    <title>SAP Fieldglass Sign In</title>
+
+
+    <link href="/scripts/new_login.v3bab062729ceac5b13ab6a5f0299f982.css" title="default" rel="stylesheet"
+        type="text/css" />
+
+    <link rel="shortcut icon" href="/images/interface/logo.ico?v=3" />
+    <link href="/scripts/fg-unified-1.v1c6609f764b5d245a0bf0b058954497b.css" title="default" rel="stylesheet"
+        type="text/css" />
+    <link href="/scripts/theme_default.vce4e0e1382e278dd317a11d07b154869.css" title="default" rel="stylesheet"
+        type="text/css">
+
+    <link
+        href="/scripts/less/designSystems/fioriNext/themes/morningHorizon/sap_theme_variables.ve55bb775135e7327a5bf376d028ca6ff.css"
+        title="default" rel="stylesheet" type="text/css">
+
+    <link
+        href="/scripts/less/designSystems/fioriNext/themes/morningHorizon/fundamentals_theme_variables.ve33a09d1d83722f8d108e8e616289665.css"
+        title="default" rel="stylesheet" type="text/css">
+
+
+
+    <script type="text/javascript">
+
+
+        function passwordFocus() {
+            if (document.loginForm.password != null && document.loginForm.password.style.display != "none")
+                document.loginForm.password.focus();
+            return false;
+        }
+        function checkCookiesSupport() {
+            // This script does not writes any information to the browser it only checks if cookies are allowed
+            var isCookieSupported = 0
+            document.cookie = setSameSiteCookie("name=InSite; path=/;");
+            isCookieSupported = document.cookie.indexOf("InSite");
+            // If Cookies are allowd delete the cookie created
+            if (isCookieSupported < 0) {
+                document.cookie = setSameSiteCookie("name=InSite; path=/; expires=Thu, 1 JAN 1970 00:00:01 UTC;");
+            }
+
+            if (document.getElementById("isCookieEnabled")) {
+                document.getElementById("isCookieEnabled").value = (!(isCookieSupported < 0));
+            }
+        }
+
+        function changeLanguage(obj) {
+            var url = "/?" + obj.name + "=" + obj.value;
+            window.location.href = url
+        }
+        $(".selectLanguage option:first").prop('selected', false);
+
+        function validateLogin(form) {
+            if (form.username.value.length == 0) {
+                showErrorWithIcon('Please enter your username.', "#errorPanel");
+                form.username.focus();
+                if ($(".errorDiv").length > 0) {
+                    $("div.errorDiv").attr("role", "alert");
+                }
+                return false;
+            }
+            var pswdField = null;
+            if (form.password != null)
+                pswdField = form.password;
+            else if (form.timeBasedOneTimePasscode != null)
+                pswdField = form.timeBasedOneTimePasscode;
+            else if (form.totp != null)
+                pswdField = form.totp;
+            if (pswdField.value.length == 0) {
+                passwordFocus();
+                showErrorWithIcon('Please enter your password.', "#errorPanel");
+                if ($(".errorDiv").length > 0) {
+                    $("div.errorDiv").attr("role", "alert");
+                }
+                return false;
+            }
+
+            form.client_width.value = windowDimensions().innerWidth;
+            form.client_height.value = windowDimensions().innerHeight;
+            form.flash_enabled.value = isFlashEnabled();
+            return true;
+        }
+
+        function showErrorWithIcon(errMsg, selector) {
+            errMsg = errMsg.replace(/\n/g, "<br/>");
+
+            // check if the error panel exist set the error content else append it
+            if ($(".error_msg,.center").html() !== '') {
+                $(".globalError").text(errMsg);
+            } else {
+                $(selector).html("<div class=\"errorDiv\"><div class=\"errorrow clearfix\"><figure><svg class=\"iconSvg fl red_type2\"><use xlink:href=\"#icon-critical\"></use></svg></figure><div class=\"globalError\">" + errMsg + "</div></div></div>");
+            }
+        }
+
+        // if the login is in the preview pane put it in the main window.
+        if (window.name == "previewPaneFrame" && parent && parent.name.indexOf("modalWindow") <= -1) {
+            parent.location.href = "/login.jsp?next=" + escape(parent.location.pathname + parent.location.search);
+        }
+
+        if (window.name == "tagPreviewPaneFrame" && parent && parent.name.indexOf("modalWindow") <= -1) {
+            parent.location.href = "/login.jsp?next=" + escape(parent.location.pathname + parent.location.search);
+        }
+
+        // if the window is a modal window then close the window with the return code
+        // of SESSION_DISCONNECT so that the window will know to go to the login page.
+
+        var RETURN_CODE_SESSION_DISCONNECT = -1;
+
+        if (typeof window.dialogHeight != 'undefined') {
+            window.returnValue = RETURN_CODE_SESSION_DISCONNECT;
+            window.close();
+        }
+
+        if ((window.name && window.name.indexOf("modalWindow") > -1) || (parent && parent.name.indexOf("modalWindow") > -1)) {
+            window.opener.modalWindowCallBack(RETURN_CODE_SESSION_DISCONNECT);
+            window.close();
+        }
+
+
+        /**
+        * Fix the ltr option in the languages select (Flipping parenthesis)
+        */
+        function fixRtlOption() {
+            var selectOptionVal = $("option:SELECTED").val();
+
+            $("option").each(function () {
+                if (selectOptionVal == "he_IL") {
+                    // For Hebrew - Add to the ltr option (a left-to-right mark &lrm;) to all other languages (for js - Octal:\u200e)
+                    if (this.value != "he_IL") {
+                        this.text += '\u200e';
+                    }
+                } else {
+                    // For other then Hebrew languages - Add to the rtl option (a right-to-left mark &rlm; - for js - Octal:\u200f)
+                    if (this.value == "he_IL") {
+                        this.text += '\u200f';
+                    }
+                }
+            });
+        }
+
+        $(function () {
+
+            if (document.loginForm.username) {
+                document.loginForm.username.focus();
+            }
+
+
+            checkCookiesSupport();
+
+            // Fix the ltr option in the languages select (Flipping parenthesis)
+            fixRtlOption();
+        });
+
+    </script>
+
+</head>
+
+
+<body class="loginPageStyle" id="loginBackgroundImg">
+    <div id="wrapper">
+        <form name="loginForm" method="post" action="/login.do" id="login_wrapper" autocomplete="off">
+            <header>
+                <div id="header_new">
+                    <ul id="topHeader">
+                        <li class="modeHeader" id="dev_mode">&nbsp;
+
+
+                            (4z6lq)
+
+                        </li>
+                        <li class="linkHeader">
+                            <div id="select_new"><label>Language: <select name="language" aria-haspopup="true"
+                                        tabIndex="0" size="1" class="selectLanguage" aria-label="Supported Languages">
+                                        <option value="de_DE">Deutsch (Deutschland)</option>
+                                        <option value="en_GB">English (United Kingdom)</option>
+                                        <option value="en_US" selected>English (United States)</option>
+                                        <option value="es_MX">Español (México)</option>
+                                        <option value="fr_CA">Français (Canada)</option>
+                                        <option value="fr_FR">Français (France)</option>
+                                        <option value="it_IT">Italiano (Italia)</option>
+                                        <option value="hu_HU">Magyar (Magyarország)</option>
+                                        <option value="nl_NL">Nederlands (Nederland)</option>
+                                        <option value="pl_PL">Polski (Polska)</option>
+                                        <option value="pt_BR">Português (Brasil)</option>
+                                        <option value="pt_PT">Português (Europeu)</option>
+                                        <option value="sv_SE">Svenska (Sverige)</option>
+                                        <option value="mn_XC">Монгол (Монгол Улс)</option>
+                                        <option value="ru_RU">Русский (Россия)</option>
+                                        <option value="he_IL">עברית (ישראל)</option>
+                                        <option value="ar_SA">اللغة العربية (اللغة العربية الفصحى)</option>
+                                        <option value="zh_TW">中文 (繁體)</option>
+                                        <option value="zh_CN">中文(简体)</option>
+                                        <option value="ja_JP">日本語（日本）</option>
+                                        <option value="ko_KR">한국어(대한민국)</option>
+                                    </select>
+                                    <script type='text/javascript'>var languageSelect = $('select[name=language]');
+                                        languageSelect.on('change', function () {
+                                            changeLanguage(this);
+                                        })</script>
+                                </label></div>
+                        </li>
+                    </ul>
+                </div>
+            </header>
+
+
+            <div class="error_msg center" style="display: none; width: 90%; margin: 10px auto -50px;"
+                id="displaySNLegacyUrlWarning">
+                <div id="warningDiv" class="warnDiv">
+                    <div class="errorrow clearfix">
+                        <figure class="icon-warning-figure"><svg
+                                class="iconSvg orange_type11 size_15 icon-warning svg_margin" focusable="false">
+                                <use xlink:href="#icon-warning"></use>
+                            </svg></figure>
+                        <div class="globalWarning alignLeft"><b>Reminder:</b> The redirect from www.fieldglass.net to
+                            the new SAP Fieldglass URL (www.us.fieldglass.cloud.sap) will be deactivated on 2026-06-12.
+                            To ensure uninterrupted access, begin using the new URL immediately.</div>
+                    </div>
+                </div>
+            </div>
+
+            <main role="main" id="primary-content">
+                <div id="content_area_new">
+
+                    <div id="logo" class="clear_bottom">
+                        <figure>
+                            <a tabindex="0" title="Company Logo: Go to the Fieldglass website." target="_blank"
+                                href="https://www.sap.com/products/spend-management/external-workforce-and-services.html">
+                                <svg class="icon-fg_logo_white svg_margin" focusable="false" alt="Company Logo">
+                                    <use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#icon-fg_logo_white">
+                                    </use>
+                                </svg>
+                            </a>
+                        </figure>
+                    </div>
+
+
+
+                    <div id="errorPanel" class="error_msg center"></div>
+
+                    <div id="primary_content" class="fl">
+
+
+
+
+
+
+                        <input type="hidden" name="qalogin" value="null" />
+
+                        <div class="entryLoginInput">
+                            <label class="loginPageLabel" for="usernameId_new">
+                                Username
+                                <div class="requiredFieldAsterick">
+                                    <figure>
+                                        <svg class="icon-asterick svg_margin" focusable="false">
+                                            <use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#icon-asterick">
+                                            </use>
+                                        </svg>
+                                    </figure>
+                                </div>
+                            </label>
+
+                            <input type="text" name="username" maxlength="100" size="35" tabindex="1" autocomplete="off"
+                                value="" id="usernameId_new">
+                        </div>
+
+
+
+                        <div class="entryLoginInput">
+                            <label class="loginPageLabel" for="passwordId_new">
+                                Password
+                                <div class="requiredFieldAsterick">
+                                    <figure>
+                                        <svg class="icon-asterick svg_margin" focusable="false">
+                                            <use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#icon-asterick">
+                                            </use>
+                                        </svg>
+                                    </figure>
+                                </div>
+                            </label>
+                            <input type="password" name="password" maxlength="50" size="35" tabindex="2"
+                                autocomplete="off" value="" id="passwordId_new">
+                        </div>
+
+
+
+
+                        <div id="capsLockWarningMsg" role="alert" class="displayNone">
+                            Warning: <b>Caps Lock is On!</b><br /><br />Having Caps Lock on may cause you to enter your
+                            password incorrectly.<br /><br />Please press Caps Lock to turn it off before entering your
+                            password.
+                        </div>
+
+                        <input type="hidden" id="nextPageLabel" value="Next >" />
+
+                        <div class="loginLinkContainer">
+                            <div class="loginLink">
+                                <a href="#" id="login_help_new" class="loginLinkTag" tabindex="4">
+                                    Need sign in assistance?
+                                </a>
+                            </div>
+                            <div class="loginLink">
+                                <a tabindex="5" title="Help Center" target="_blank"
+                                    href="https://support.fieldglass.com/Help_Center/Fieldglass?ver=v1&amp;params=skfpAznpfEHQ6vep00yAsU2PLgVdjkoBXZpgC9UuqT0iX7%2Bgddq%2F2oO%2BaHdrwgmXgR209retamXTAXfWy%2B4b07Sx1sXnbPUtBEmtomoWIUSgZOX9TGRrsxYt5gK%2F5UIxDRt1Dgz%2F3%2FzAhbV1WMEHj4okT%2BAr6LwQj5u91eiMPncb%2FiwNjjLhqnGVGtUgkzRNj39%2FinFJgoVSA2%2B2glpaDLR1IlrXzZVjM8FcnktU6DtFFlvrPdeAoB%2BP8wLtJy%2FnMH9V%3AgAxmCkcCV8Q%2FXx2t6YBMVA%3D%3D&amp;destination=">
+                                    <figure>
+                                        <svg class="icon-support" focusable="false">
+                                            <use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#icon-support">
+                                            </use>
+                                        </svg>
+                                    </figure>
+                                    <div class="loginLinkText">
+                                        Help Center
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+
+
+
+                        <div class="entryLoginInput_button">
+                            <button type="submit" name="action" tabindex="3" value="Sign In"
+                                class="formLoginButton_new">
+                                Sign In
+                            </button>
+                        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        <input type="hidden" name="next" value="">
+                        <input type="hidden" name="_for" value="">
+                        <input type="hidden" name="_company_code" value="">
+                        <input type="hidden" name="_resource_id" value="">
+                        <input type="hidden" name="_destination" value="">
+                        <input type="hidden" name="_destination_context" value="">
+
+
+                        <input type="hidden" name="client_width">
+                        <input type="hidden" name="client_height">
+                        <input type="hidden" name="flash_enabled">
+                        <input type="hidden" name="noBrowserCheck" value="">
+
+
+
+                        <input type="hidden" name="isCookieEnabled" id="ismCookieEnabled" value="true">
+
+                    </div>
+                    <div class="clear"></div>
+                </div>
+            </main>
+        </form>
+
+
+        <script type="text/javascript">
+            $(function () {
+                let warningURLArr = "www.fieldglass.net,fieldglass.net,https://fieldglass.net/,https://www.fieldglass.net/".split(",");
+                if (warningURLArr.includes(location.host)) {
+                    $("#displaySNLegacyUrlWarning").show();
+                }
+            });
+        </script>
+
+
+    </div>
+
+    <div id="footer_new">
+        <div class="footer-content-wrap">
+            <div id="footer_content" class="footer-content-area">
+                <img src="./images/sap-logo.png" height="31"
+                    alt="SAP SE or an SAP affiliate company. All rights reserved.">
+
+                &copy;
+                2026
+
+                SAP SE or an SAP affiliate company. All rights reserved.
+                Confidential and Proprietary Information of SAP America, Inc.<br />
+                <ul>
+                    <li><a href="/PrivacyPolicy.en_US.pdf" target="_blank">Data Processing Disclosure</a></li>
+                    <li><a href="/CookiePolicy.en_US.pdf" target="_blank">Cookie Policy</a></li>
+                    <li>
+                        <div id="teconsent"></div>
+                    </li>
+                    <li><a href="/TermsOfUse.en_US.pdf" target="_blank">Terms of Use</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+
+    <link href="/scripts/fg-unified-1.v1c6609f764b5d245a0bf0b058954497b.css" title="default" rel="stylesheet"
+        type="text/css">
+
+    <script type="text/javascript" src="/scripts/chat-bot-all.v93d63fbf279bcbeb9f0f9173cb32d597.js"></script>
+
+
+    <script type="text/javascript">
+        /*
+         * Please write all your 'link' step callbacks / event handlers in this script block. The UI framework for the chat bot
+         * requires all such callbacks / event handlers to be in global scope. Also make sure that you
+         * are not putting these callbacks / event handlers in some namespace.
+         */
+
+        /**
+         * Click Handler for Submit Support Case link
+         */
+        function openSubmitSupportCaseWindow() {
+            window.open('/submit_case.do?language=en_US', 'submitCase', 'toolbar=no,location=yes,resizable=yes,scrollbars=yes,width=530,height=660,screenX=50,screenY=50,left=300,top=20');
+        }
+    </script>
+
+
+    <script>    $(function () { new ChatBotAssembler({ "chatId": "resolveLoginIssuesChat", "chatSessionId": "G2b5XC7zhL", "localeId": "en_US" }, { helpMenuCreateObjectsIcon: $('<figure ><svg class="icon-add svg_margin" focusable="false" >  <use xlink:href="#icon-add"></use></svg></figure>').get(0), helpMenuArrowIcon: $('<figure ><svg class="icon-move-down svg_margin" focusable="false" >  <use xlink:href="#icon-move-down"></use></svg></figure>').get(0), infoIconForDomainName: $('<figure ><svg class="icon-info svg_margin" focusable="false" >  <use xlink:href="#icon-info"></use></svg></figure>').get(0), helpObjects: {}, panelCloseIconTooltip: 'Close', helpMenuApproveObjectsIcon: $('<figure ><svg class="icon-wizard-completed svg_margin" focusable="false" >  <use xlink:href="#icon-wizard-completed"></use></svg></figure>').get(0), helpMenuScheduleInterviewsIcon: $('<figure ><svg class="icon-my-history svg_margin" focusable="false" >  <use xlink:href="#icon-my-history"></use></svg></figure>').get(0), voiceButtonRequired: false, panelTogglingElementSelectors: ["#assistant-launch-icon", "#login_help_new", "#chatBotLaunchIconContainer", "#assistantLinkFromErrorMessage"], omniboxRequired: false, panelCloseIcon: $('<figure ><svg class="iconSvg bot_light_blue size_10 icon-remove svg_margin" focusable="false" >  <use xlink:href="#icon-remove"></use></svg></figure>').get(0), showDomainName: true, voiceIconTooltip: 'Start voice control.', omniboxChatId: 'omniboxChat', textForDomainName: 'You are currently accessing "www.us.fieldglass.cloud.sap"', omniboxInputStateName: 'text-for-nlp-analysis', helpMenuInitHelpMessage: 'Here are the actions I can help you with.', panelHeaderIcon: $('<img class="botCopilotHeaderIcon" src="/images/svgicons/CoPilot_transparent.svg" alt="Copilot Icon">').get(0), helpMenuViewObjectsIcon: $('<figure ><svg class="icon-search svg_margin" focusable="false" >  <use xlink:href="#icon-search"></use></svg></figure>').get(0), panelHeaderIconTooltip: 'Fieldglass Assistant', helpMenuIconTooltip: 'Help', helpMenuManageWorkersIcon: $('<figure ><svg class="icon-CheckedOutByMe svg_margin" focusable="false" >  <use xlink:href="#icon-CheckedOutByMe"></use></svg></figure>').get(0), helpMenuExtendObjectsIcon: $('<figure ><svg class="icon-edit svg_margin" focusable="false" >  <use xlink:href="#icon-edit"></use></svg></figure>').get(0), arrowIconForText: $('<figure ><svg class="icon-nav-arrow svg_margin" focusable="false" >  <use xlink:href="#icon-nav-arrow"></use></svg></figure>').get(0), defaultProfilePicture: $('<figure ><svg class="icon-user-accounts svg_margin" focusable="false" >  <use xlink:href="#icon-user-accounts"></use></svg></figure>').get(0), helpMenuManageReportsIcon: $('<figure ><svg class="icon-analytics svg_margin" focusable="false" >  <use xlink:href="#icon-analytics"></use></svg></figure>').get(0), helpMenuIcon: $('<figure ><svg class="iconSvg bot_light_blue size_10 icon-help svg_margin" focusable="false" >  <use xlink:href="#icon-help"></use></svg></figure>').get(0), omniboxChatStepId: '1', voiceIcon: $('<figure ><svg class="icon-microphone svg_margin" focusable="false" >  <use xlink:href="#icon-microphone"></use></svg></figure>').get(0), showHelpMenu: false, }, { "endPointUrl": "/bot/beforeLogin" }); })</script>
+
+
+
+    <script>function setBindMapLanguage() {
+            ;
+            if (typeof truste === 'undefined' || typeof truste.eu === 'undefined') {
+            }
+        } $(function () {
+            try { if (!!window._satellite) { _satellite.setDebug(true); _satellite.pageBottom(); } } catch (e) { console.error("Error while calling _satellite.pageBottom(), Error thrown : " + e); } $('.truste_cursor_pointer').html('Cookie Preferences');
+        });
+    </script>
+    <div id="consent_blackbar"></div>
+</body>
+
+</html>

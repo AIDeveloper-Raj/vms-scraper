@@ -84,7 +84,7 @@ export async function scrapeTimesheetDetail(
   }
 
   // ── Level 3: LLM fallback ─────────────────────────────────────────────────
-  if (!config.anthropic.apiKey) {
+  if (!config.openai.apiKey) {
     log.warn('LLM fallback skipped — ANTHROPIC_API_KEY not set');
     return data;
   }

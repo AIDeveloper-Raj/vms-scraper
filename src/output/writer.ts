@@ -11,6 +11,7 @@ import { logger } from '../utils/logger';
 // ── Individual timesheet ──────────────────────────────────────────────────────
 
 export async function writeResult(result: ScrapeResult): Promise<void> {
+  logger.debug(`writeResult called for ${result.timesheetId} — data: ${!!result.data}`);
   if (!result.data) return;
 
   const filePath = path.join(config.output.json, `${sanitizeId(result.timesheetId)}.json`);

@@ -1,24 +1,50 @@
 {
   "name": "vms-timesheet-scraper",
   "version": "1.0.0",
-  "description": "Production-grade Beeline VMS timesheet scraper with LLM+OCR fallback",
+  "description": "VMS Timesheet Scraper — Fieldglass + Beeline with dashboard",
   "main": "dist/index.js",
+  "bin": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"require('fs').mkdirSync('dist/dashboard',{recursive:true}); require('fs').copyFileSync('src/dashboard/index.html','dist/dashboard/index.html')\"",
     "start": "node dist/index.js",
+    "start:server": "node dist/index.js --server",
     "dev": "ts-node src/index.ts",
-    "setup:browsers": "npx playwright install chromium"
+    "dev:server": "ts-node src/index.ts --server",
+    "dev:abtl": "ts-node src/index.ts --account abtl",
+    "dev:amdi": "ts-node src/index.ts --account amdi",
+    "dev:novo": "ts-node src/index.ts --account novo",
+    "setup:browsers": "npx playwright install chromium",
+    "package:mac": "npm run build && pkg . --compress GZip"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
+    "better-sqlite3": "^9.6.0",
     "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "openai": "^4.103.0",
     "playwright": "^1.52.0",
-    "tesseract.js": "^4.1.4",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^4.17.21",
     "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.14",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3"
+  },
+  "pkg": {
+    "scripts": "dist/**/*.js",
+    "assets": [
+      "dist/dashboard/index.html",
+      "src/parsers/structures/*.json",
+      "accounts.example.json"
+    ],
+    "targets": [
+      "node18-macos-arm64",
+      "node18-macos-x64",
+      "node18-win-x64"
+    ],
+    "outputPath": "release"
   }
 }
